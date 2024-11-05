@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cafe Platform</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .cafe-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .cafe-item {
+            padding: 20px;
+            margin-bottom: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .cafe-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        .cafe-item h2 {
+            margin: 0 0 10px;
+            font-size: 1.5em;
+            color: #333;
+        }
+        .cafe-item p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .detail-button {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        .detail-button:hover {
+            background-color: #0056b3;
+        }
+        .filter-buttons {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .filter-buttons button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .filter-buttons button:hover {
+            background-color: #0056b3;
+        }
+        .search-bar {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .search-bar input {
+            padding: 10px;
+            width: 80%;
+            max-width: 500px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to Cafe Platform</h1>
+    <p>ここにカフェリストが表示されます。</p>
+    
+    <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="キーワードで検索（カフェ名やメニュー）" oninput="searchCafes()">
+    </div>
+
+    <div class="filter-buttons">
+        <button onclick="filterCafes('')">すべて表示</button>
+        <button onclick="filterCafes('石垣島')">石垣島</button>
+        <button onclick="filterCafes('宮古島')">宮古島</button>
+        <button onclick="filterCafes('西表島')">西表島</button>
+    </div>
+
+    <ul class="cafe-list">
+    </ul>
+
+    <script>
+        let allCafes = [];
+
+        function displayCafes(cafes) {
+            const cafeList = document.querySelector('.cafe-list');
+            cafeList.innerHTML = '';
+            cafes.forEach(cafe => {
+                const listItem = document.createElement('li');
+                listItem.className = 'cafe-item';
+                listItem.innerHTML = `
+                    <h2>カフェ名: ${cafe.name}</h2>
+                    <p>所在地: ${cafe.location}</p>
+                    <p>おすすめメニュー: ${cafe.menu}</p>
+                    <a href="#" onclick="showCafeDetails(${cafe.id})" class="detail-button">詳細を見る</a>
+                `;
+                cafeList.appendChild(listItem);
+            });
+        }
+
+        async function showCafeDetails(cafeId) {
+            try {
+                const response = await fetch(`/api/cafes/${cafeId}`);
+                const cafe = await response.json();
+                displayCafeDetails(cafe);
+            } catch (error) {
+                console.error('カフェの詳細情報を取得できませんでした:', error);
+            }
+        }
+
+        function displayCafeDetails(cafe) {
+            const cafeList = document.querySelector('.cafe-list');
+            cafeList.innerHTML = `
+                <div class="cafe-details">
+                    <h2>カフェ名: ${cafe.name}</h2>
+                    <p>所在地: ${cafe.location}</p>
+                    <p>おすすめメニュー: ${cafe.menu}</p>
+                    <p>${cafe.details || '詳細情報がありません'}</p>
+
+                    <h3>レビュー</h3>
+                    <ul class="review-list">
+                        ${cafe.reviews.map(review => `<li><strong>${review.username}</strong>: ${review.comment}</li>`).join('')}
+                    </ul>
+
+                    <h4>レビューを投稿</h4>
+                    <input type="text" id="username" placeholder="名前">
+                    <textarea id="comment" placeholder="コメント"></textarea>
+                    <button onclick="submitReview(${cafe.id})">投稿する</button>
+
+                    <button onclick="loadCafes()">戻る</button>
+                </div>
+            `;
+        }
+
+        async function submitReview(cafeId) {
+            const username = document.getElementById('username').value;
+            const comment = document.getElementById('comment').value;
+
+            if (username && comment) {
+                try {
+                    const response = await fetch(`/api/cafes/${cafeId}/reviews`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ username, comment })
+                    });
+
+                    if (response.ok) {
+                        showCafeDetails(cafeId);
+                    } else {
+                        console.error('レビューの投稿に失敗しました');
+                    }
+                } catch (error) {
+                    console.error('エラーが発生しました:', error);
+                }
+            } else {
+                alert('名前とコメントを入力してください');
+            }
+        }
+
+        async function loadCafes() {
+            try {
+                const response = await fetch('/api/cafes');
+                allCafes = await response.json();
+                displayCafes(allCafes);
+            } catch (error) {
+                console.error('カフェリストの取得に失敗しました:', error);
+            }
+        }
+
+        function searchCafes() {
+            const searchInput = document.getElementById('searchInput').value.toLowerCase();
+            const filteredCafes = allCafes.filter(cafe => 
+                cafe.name.toLowerCase().includes(searchInput) || 
+                cafe.menu.toLowerCase().includes(searchInput)
+            );
+            displayCafes(filteredCafes);
+        }
+
+        function filterCafes(location) {
+            const filteredCafes = location ? allCafes.filter(cafe => cafe.location === location) : allCafes;
+            displayCafes(filteredCafes);
+        }
+
+        window.onload = loadCafes;
+    </script>
+</body>
+</html>
